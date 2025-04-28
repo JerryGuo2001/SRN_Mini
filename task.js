@@ -109,7 +109,7 @@ let id = "";
 let totalGraphTrials = 99;  // Number of graph comparison trials
 let totalProbeTrials = 20;
 // let totaltrial = totalGraphTrials + totalProbeTrials;
-let totaltrial = 22
+let totaltrial = 119
 let trialSequence = Array.from({ length: totaltrial }, (_, i) => ({
     type: "graph",
     index: i  // This will be overwritten for probe later
@@ -118,7 +118,7 @@ let trialSequence = Array.from({ length: totaltrial }, (_, i) => ({
 // Randomly assign `totalProbeTrials` indices as probes
 let probeSet = new Set();
 while (probeSet.size < totalProbeTrials) {
-    let idx = Math.floor(Math.random() * totaltrial);
+    let idx = Math.floor(Math.random() * 20);
     if (!probeSet.has(idx)) {
         probeSet.add(idx);
         trialSequence[idx] = { type: "probe" };
