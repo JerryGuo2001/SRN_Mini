@@ -108,7 +108,8 @@ let id = "";
 
 let totalGraphTrials = 99;  // Number of graph comparison trials
 let totalProbeTrials = 20;
-let totaltrial = totalGraphTrials + totalProbeTrials;
+// let totaltrial = totalGraphTrials + totalProbeTrials;
+let totaltrial=21
 
 let trialSequence = Array.from({ length: totaltrial }, (_, i) => ({
     type: "graph",
@@ -152,8 +153,8 @@ function runTrial() {
         instructionsEl.innerHTML = 'Press <strong>P</strong> button.';
         instructionsEl.style.color = 'red';
 
-        const graphA = aGraphs[Math.floor(Math.random() * 31)];
-        const graphB = bGraphs[Math.floor(Math.random() * 31)];
+        const graphA = aGraphs[Math.floor(Math.random() * 30)];
+        const graphB = bGraphs[Math.floor(Math.random() * 30)];
         drawGraph(graphA, "graph-left");
         drawGraph(graphB, "graph-right");
     
