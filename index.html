@@ -1,59 +1,130 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Graph Choice Task</title>
-    <script src="https://unpkg.com/cytoscape@3.20.0/dist/cytoscape.min.js"></script>
-    <script defer src="task.js"></script>
-    <style>
-        .graph-box {
-            width: 700px;
-            height: 700px;
-            border: 1px solid #ccc;
-            background-color: white;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
 
-        
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f7f7f7;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            margin: 0;
-            padding: 40px;         
-            font-size: 18px;      
-            zoom: 1.1;               
-        }
-        
-        input, button {
-            font-size: 1em;
-            padding: 5px 10px;
-        }
-        #graph-container {
-            display: flex;
-            justify-content: space-between;
-            margin: 20px 0;
-        }
-        #instructionsText {
-            margin-top: 20px;
-            font-size: 1.1em;
-            font-weight: bold;
-        }
-        #warning {
-            color: red;
-            font-weight: bold;
-            margin-top: 10px;
-        } 
+    <!-- PDF.js UMD (single version) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        window.pdfjsLib = window['pdfjs-dist/build/pdf'];
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    </script>
+
+    <!-- ✅ Cytoscape must load before task.js -->
+    <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+
+    <!-- Your app (deferred) -->
+    <script defer src="task.js"></script>
+
+    <style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden; /* prevent scrollbars */
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f7f7f7;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;   /* center vertically */
+        font-size: 18px;
+        zoom: 1.1;
+    }
+
+    .graph-box {
+        width: 35vw;
+        height: 70vh;
+        border: 1px solid #ccc;
+        background-color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    #graph-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 2vw;
+        width: 100%;
+        height: auto;
+    }
+
+    #instructionsText {
+        margin-top: 20px;
+        font-size: 1.1em;
+        font-weight: bold;
+        text-align: center; /* center text under task */
+    }
+
+    #warning {
+        color: red;
+        font-weight: bold;
+        margin-top: 10px;
+        text-align: center;
+    }
+
     </style>
 </head>
 <body>
+    <div id="breakScreen" style="display:none; text-align:center;">
+        <h2>Break Time</h2>
+        <p>You may resume in<span id="breakCountdown">60</span></p>
+        <p id="earlyResumeMessage" style="display:none;">Press <strong>SPACE</strong> to resume early</p>
+    </div>
+
+    <!-- Consent viewer -->
+    <div id="consentView" style="display:none; max-width:980px; width:100%;">
+    <h2 style="text-align:center; margin-bottom:10px;">Consent Form</h2>
+
+    <!-- Scrollable PDF container -->
+    <div id="consentScrollWrap"
+        style="height:70vh; overflow:auto; border:1px solid #ddd; background:#fff; padding:8px;">
+        <!-- PDF pages will be rendered here -->
+        <div id="consentPdfContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+
+    <!-- Progress & controls -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:10px;">
+        <div id="consentProgress" style="font-size:14px; color:#444;">Scroll to the end to enable the button.</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+        <label style="font-size:14px; user-select:none;">
+            <input type="checkbox" id="consentCheckbox" disabled>
+            I have read and agree to participate.
+        </label>
+        <button id="consentAgreeBtn"
+                style="font-size:20px; padding:10px 18px; border-radius:10px; cursor:not-allowed; opacity:.5;">
+            I Agree & Continue
+        </button>
+        </div>
+    </div>
+    </div>
+
+    
+    <!-- Instruction carousel (replaces the old preTaskInstruction) -->
+    <div id="instructionCarousel" style="display:none; text-align:center;">
+    <h2>Instructions</h2>
+    <div style="display:flex; align-items:center; justify-content:center; gap:16px; margin: 10px 0;">
+        <button id="instrPrev" style="font-size:22px; padding:10px 18px; border-radius:10px; cursor:pointer;">← Previous</button>
+        <img id="instructionImage" alt="Instruction" style="max-width: 95vw; max-height: 90vh; border:1px solid #ddd; background:#fff;" />
+        <button id="instrNext" style="font-size:22px; padding:10px 18px; border-radius:10px; cursor:pointer;">Next →</button>
+    </div>
+    <div id="instrPager" style="margin:8px 0; font-weight:600;"></div>
+    <button id="instrStart" style="display:none; font-size:24px; padding:12px 24px; border-radius:12px; cursor:pointer; margin-top:8px;">
+        Start Experiment
+    </button>
+    <p style="margin-top:10px; color:#666; font-size:14px;">Use the buttons or arrow keys (←/→).</p>
+    </div>
+
+
     <div id="instruction">
         <h2 style="text-align: center;">Welcome to the experiment</h2>
         <p style="text-align: center;">Please enter your ID to begin.</p>
@@ -63,9 +134,8 @@
     </div>
 
     <div id="task" style="display:none;">
-        <h2 style="text-align: center;">Graph Comparison Task</h2>
         <p id="instructionsText" style="text-align: center;"></p>
-        <div id="graph-container">
+        <div id="graph-container" style="display: none;">
             <div class="graph-box" id="graph-left"></div>
             <div class="graph-box" id="graph-right"></div>
         </div>
@@ -77,15 +147,4 @@
         <p>Your responses have been recorded.</p>
     </div>
 </body>
-<script>
-    window.onload = async function() {
-    await loadGraphsFromCSV();
-    generateUniquePairs();
-
-    // Now you can access:
-    // - aGraphs[i], bGraphs[i]
-    // - pairs[i] = [i, j]
-    // - pairMetadata[i] = { blockA, blockB, nodeCountA, nodeCountB }
-};
-</script>
 </html>
