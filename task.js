@@ -39,8 +39,11 @@ function cyrb128(str) {
   return [(h1^h2^h3^h4)>>>0, (h2^h1)>>>0, (h3^h1)>>>0, (h4^h1)>>>0];
 }
 function seedFromString(s, salt="") {
-  const [a,b,c,d] = cyrb128(s + "|" + salt);
-  return (a ^ b ^ c ^ d) >>> 0;
+  // cyrb128 already mixes the input into four usable 32-bit words. XORing
+  // all four words cancels to zero because of how those words are derived.
+  // Use one mixed word instead so each participant/salt gets a stable,
+  // participant-specific seed.
+  return cyrb128(s + "|" + salt)[0];
 }
 // Global seeds & PRNGs (set after we know id)
 let PAIR_SEED = 0;
@@ -553,7 +556,7 @@ if (debugmode){
   totalGraphTrials = 20;
   totalProbeTrials = 5;
 }else{
-  totalGraphTrials = 80;
+  totalGraphTrials = 30;
   totalProbeTrials = 20;
 }
 
@@ -562,6 +565,17 @@ let totaltrial = totalGraphTrials + totalProbeTrials;
 let trialSequence = []; // will be filled by buildTrialSequence()
 
 function buildTrialSequence() {
+  // There are only as many non-repeating graph trials as generated pairs.
+  // Keep the requested count in debug mode, but cap larger configurations so
+  // the task can finish without repeating a comparison or ending as partial.
+  if (totalGraphTrials > pairs.length) {
+    console.warn(
+      `Requested ${totalGraphTrials} graph trials, but only ${pairs.length} unique pairs are available. ` +
+      `Using ${pairs.length} graph trials.`
+    );
+    totalGraphTrials = pairs.length;
+  }
+  totaltrial = totalGraphTrials + totalProbeTrials;
   totalProbeTrials = Math.max(0, Math.min(totalProbeTrials, totaltrial));
 
   // Start with all graph trials
@@ -880,14 +894,14 @@ function runTrial() {
     saveCSV();
     return;
   }
-  if (graphIndex >= pairs.length) {
+  const trial = trialSequence[currentIndex];
+  if (trial.type === "graph" && graphIndex >= pairs.length) {
+    console.error("Trial sequence requested more graph trials than there are graph pairs.");
     document.getElementById("task").style.display = "none";
     document.getElementById("thanks").style.display = "block";
     saveCSV();
     return;
   }
-
-  const trial = trialSequence[currentIndex];
   const instructionsEl = document.getElementById("instructionsText");
 
   if (trial.type === "probe_space") {
@@ -971,6 +985,18 @@ const keyListener = (e) => {
 
   responded = true;
   const rt = performance.now() - trialStart;
+
+  // This trial has a valid response, so its listener and timeout are no
+  // longer needed. Clearing both also prevents an older timer from
+  // interfering with a later trial or fullscreen pause.
+  if (currentKeyListener) {
+    document.removeEventListener("keydown", currentKeyListener);
+    currentKeyListener = null;
+  }
+  if (currentTimeoutId) {
+    clearTimeout(currentTimeoutId);
+    currentTimeoutId = null;
+  }
 
   // Small toast/bottom banner
   if (trial.type === "probe_space") {
@@ -1077,35 +1103,35 @@ const keyListener = (e) => {
         fastCount = 0;
       }
 
-      if (currentKeyListener) {
-        document.removeEventListener("keydown", currentKeyListener);
-        currentKeyListener = null;
-      }
-      if (fastCount >= 3) {
-        document.getElementById("graph-container").style.display = "none";
-        let warningElement = document.getElementById("warning");
-        let timeLeft = 10;
-        warningElement.style.display = "block";
-        warningElement.textContent = `⚠️ You're responding too fast! Please slow down. (${timeLeft}s)`;
+    }
 
-        const countdown = setInterval(() => {
-          timeLeft--;
-          if (timeLeft > 0) {
-            warningElement.textContent = `⚠️ You're responding too fast! Please slow down. (${timeLeft}s)`;
-          } else {
-            clearInterval(countdown);
-            warningElement.style.display = "none";
-            fastCount = 0;
-            currentIndex++;
-            runTrial();
-          }
-        }, 1000);
-      } else {
-        setTimeout(() => {
+    // Advance every responded trial, including both probe types. Previously
+    // this progression lived only inside the graph branch, so a successful
+    // probe response left the participant stuck on that probe forever.
+    if (trial.type === "graph" && fastCount >= 3) {
+      document.getElementById("graph-container").style.display = "none";
+      let warningElement = document.getElementById("warning");
+      let timeLeft = 10;
+      warningElement.style.display = "block";
+      warningElement.textContent = `⚠️ You're responding too fast! Please slow down. (${timeLeft}s)`;
+
+      const countdown = setInterval(() => {
+        timeLeft--;
+        if (timeLeft > 0) {
+          warningElement.textContent = `⚠️ You're responding too fast! Please slow down. (${timeLeft}s)`;
+        } else {
+          clearInterval(countdown);
+          warningElement.style.display = "none";
+          fastCount = 0;
           currentIndex++;
           runTrial();
-        }, 500);
-      }
+        }
+      }, 1000);
+    } else {
+      setTimeout(() => {
+        currentIndex++;
+        runTrial();
+      }, 500);
     }
   };
 
